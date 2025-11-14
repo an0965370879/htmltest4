@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<head>
+    <!-- 頁面標題 -->
+    <title>Process RAW PCM data using RecordRTC</title>
+    <!-- 字符編碼設定 -->
+    <meta charset="utf-8">
+    <!-- 響應式設計 viewport 設定：禁止使用者縮放 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <!-- 引入自定義樣式表 -->
+    <link rel="stylesheet" href="assets/css/style.css">
+    <!-- 移除 WaveSurfer.js，改用原生 Canvas 實現波形顯示 -->
+</head>
+
+<body>
+<!-- 主標題：可由使用者自訂的標題 -->
+<h1 contenteditable="true" spellcheck="false" title="點擊編輯標題">VoiceBank+: 語料庫一段落一第一句</h1>
+
+<!-- （已移除：AGC、Mic Gain、預設視窗秒數於核心區域顯示，僅保留在進階設定） -->
+
+<!-- 迷你音量條（動態重定位：水平模式置於波形容器頂部；垂直模式置於底部） -->
+<div class="mini-level" aria-label="Level">
+    <div id="mini-level-bar"></div>
+</div>
+
+<!-- c：支援水平與垂直模式 -->
+
+<div id="waveform-wrapper" class="waveform-wrapper mode-horizontal">
+    <div class="waveform-col overview-col" style="grid-column: 1;">
+        <canvas class="wave-canvas" id="overview-waveform" width="750" height="80"></canvas>
+    </div>
+    <!-- 顯示錄音時長與樣本數的區域 -->
+    <h3 id="recording-duration">錄音時長：00:00.000 | 樣本數：0</h3>
+    <div class="waveform-col accumulated-col" style="grid-column: 2;">
+        <canvas class="wave-canvas" id="accumulated-waveform" width="750" height="140"></canvas>
+    </div>
+    <div class="waveform-col live-col">
+        <canvas class="wave-canvas" id="waveform" width="750" height="200"></canvas>
+    </div>
+</div>
+
+<!-- 示例文字：可由使用者自訂的錄音文本 -->
+<h2 contenteditable="true" spellcheck="false" title="點擊編輯錄音文本">文本：以二號女友為例，她堅持不下廚，你要娶一個巧婦，就形成對立局面。</h2>
+
+<!-- 波形下方操作列：錄音/播放/控制按鈕 -->
+<div id="waveform-action-bar" class="waveform-action-bar" style="max-width:750px;margin:8px auto 6px;display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-start;align-items:center;">
+    <button id="btn-toggle-recording" class="recording-toggle">● 開始錄音</button>
+    <button id="btn-play" class="play-button" disabled>▶ 播放</button>
+    <button id="btn-pause" disabled>⏸ 暫停</button>
+    <button id="btn-stop-playback" disabled>⏹ 停止</button>
+    <button id="btn-jump-start" disabled>⏮ 回到開始</button>
+    <button id="btn-clear-selection" disabled>✕ 取消選取區間</button>
+    <button id="btn-download-recording" disabled>下載錄音</button>
+    <span class="action-hint" style="font-size:11px;color:#555;flex-basis:100%;line-height:1.3;padding:2px 0;">提示：錄音時僅顯示「停止錄音」，播放期間可使用暫停/停止與選取操作。</span>
+</div>
+
+<!-- 進階設定（預設收合） -->
+<details id="advanced-settings" class="advanced-panel">
+    <summary>進階設定 Advanced</summary>
+    <div class="advanced-content">
+        <details class="adv-section" id="adv-device" open>
+            <summary>裝置</summary>
+            <div class="mic-select-container" id="mic-select-container">
+                <label for="mic-select" class="mic-label">輸入裝置 Microphone</label>
+                <select id="mic-select" class="mic-select" aria-label="Select Microphone" disabled>
+                    <option>讀取裝置中…</option>
+                </select>
+                <button type="button" id="btn-refresh-mics" class="mic-refresh" title="重新整理裝置清單">重新整理</button>
+                <small class="mic-hint" id="mic-hint">如顯示未授權，請先允許麥克風存取再按重新整理。</small>
+            </div>
+            <div class="spk-select-container" id="spk-select-container">
+                <label for="spk-select" class="mic-label">輸出裝置 Output</label>
+                <select id="spk-select" class="mic-select" aria-label="Select Output Device" disabled>
+                    <option>讀取裝置中…</option>
+                </select>
+                <button type="button" id="btn-refresh-outputs" class="mic-refresh" title="重新整理輸出裝置清單">重新整理</button>
+                <small class="mic-hint" id="spk-hint">部分瀏覽器需 HTTPS 與授權後才可指定輸出裝置。</small>
+            </div>
+            <div class="agc-container">
+                <label class="agc-label">
+                    <!-- 預設改為未勾選 (false) -->
+                    <input type="checkbox" id="agc-toggle">
+                    <span>啟用自動增益控制 (AGC)</span>
+                </label>
+                <small class="agc-hint">關閉可減少錄音啟動延遲，但音量可能較小且不穩定</small>
+            </div>
+            <div class="mic-gain-container" id="mic-gain-container">
+                <label for="mic-gain" class="mic-gain-label">前級增益 Mic Gain (AGC 關閉才會套用)</label>
+                <input type="range" id="mic-gain" min="1" max="6" step="0.1" value="1.0" aria-label="Microphone pre-amplification">
+                <span id="mic-gain-value">1.0x</span>
+                <small class="mic-gain-hint">可在開始錄音前調整，改善 iPhone 音量偏小問題。</small>
+            </div>
+        </details>
+
+        <details class="adv-section" id="adv-display" open>
+            <summary>顯示與檢視</summary>
+            <div class="display-mode-toggle">
+                <label><input type="radio" name="display-mode" value="horizontal" checked> 水平模式</label>
+                <label><input type="radio" name="display-mode" value="vertical"> 垂直模式</label>
+            </div>
+            <div class="orientation-quick" id="orientation-quick" style="display:none;">
+                <button type="button" id="btn-back-horizontal">↺ 回水平模式</button>
+                <button type="button" id="btn-restore-auto">⚙ 恢復自動偵測</button>
+            </div>
+            <div class="default-window-container" id="default-window-container">
+                <label for="default-window-seconds" class="default-window-label">預設顯示視窗秒數 (Overview/錄音完成)</label>
+                <input type="number" id="default-window-seconds" min="0.1" max="30" step="0.1" value="1.0" aria-label="Default window seconds">
+                <button type="button" id="btn-reset-window-seconds" title="重設為 1.0 秒">重設</button>
+                <span class="default-window-hint">錄音結束後與點擊 Overview 將聚焦此秒數範圍；若音訊短於此值則使用整段。</span>
+            </div>
+            <div class="display-extras">
+                <label><input type="checkbox" id="toggle-overview" checked> 顯示總覽波形</label>
+                <label><input type="checkbox" id="toggle-dark-mode"> 深色模式</label>
+                <label><input type="checkbox" id="toggle-auto-gain-protect" checked> 自動降增益保護</label>
+                <label><input type="checkbox" id="toggle-clip-mark" checked> 顯示削波標記</label>
+                <label><input type="checkbox" id="toggle-raw-zoom"> 以原始樣本縮放 (Raw)</label>
+                    <label><input type="checkbox" id="toggle-dynamic-detail" checked> 動態細緻度</label>
+            </div>
+        </details>
+
+        <details class="adv-section" id="adv-tools">
+            <summary>波形工具</summary>
+            <div id="accumulated-toolbar" class="waveform-toolbar">
+                <button type="button" id="accum-pan-left">&larr; 向左</button>
+                <button type="button" id="accum-zoom-out">縮小</button>
+                <button type="button" id="accum-zoom-in">放大</button>
+                <button type="button" id="accum-pan-right">向右 &rarr;</button>
+                <button type="button" id="accum-zoom-reset">重置視圖</button>
+                <span class="hint">電腦：拖曳平移 | Shift+拖曳選取/拉伸 | Ctrl+滾輪縮放<br>手機：拖曳平移 | 長按選取 | 拖曳綠色圓點調整</span>
+                <span class="window-indicator">可視範圍：<strong id="visible-window-seconds">-</strong></span>
+            </div>
+        </details>
+
+        <details class="adv-section" id="adv-analysis">
+            <summary>診斷與分析</summary>
+            <div class="vu-container">
+                <canvas id="vu-meter" width="750" height="24" aria-label="VU Meter"></canvas>
+                <details id="recording-specs" class="specs-panel" open>
+                    <summary>錄音規格 Recording specs</summary>
+                    <div id="audio-specs-content">
+                        <div class="spec-line"><span class="label">環境 Environment</span><span class="value" id="spec-env">-</span></div>
+                        <div class="spec-line"><span class="label">輸入 Input (MediaTrack)</span><span class="value" id="spec-input">尚未開始錄音</span></div>
+                        <div class="spec-line"><span class="label">AudioContext</span><span class="value" id="spec-context">-</span></div>
+                        <div class="spec-line"><span class="label">Recorder</span><span class="value" id="spec-recorder">-</span></div>
+                        <div class="spec-line"><span class="label">輸出 Output (WAV)</span><span class="value" id="spec-output">-</span></div>
+                        <div class="spec-line"><span class="label">顯示 Decimation</span><span class="value" id="spec-decimation">-</span></div>
+                        <div class="spec-line"><span class="label">削波 Clipping</span><span class="value" id="spec-clipping">-</span></div>
+                        <div class="spec-line"><span class="label">掉樣估計 Dropout</span><span class="value" id="spec-dropout">-</span></div>
+                        <div class="spec-line"><span class="label">可視 Raw 樣本</span><span class="value" id="spec-visible-raw">-</span></div>
+                        <div class="spec-line"><span class="label">細緻度 Detail</span><span class="value" id="spec-detail">-</span></div>
+                    </div>
+                </details>
+            </div>
+        </details>
+    </div>
+</details>
+
+<br>
+
+
+
+
+<!-- 引入 RecordRTC 錄音庫 -->
+<script src="assets/js/RecordRTC.js"></script>
+<!-- 引入應用程式主腳本 -->
+<script src="assets/js/app.js"></script>
+
+<!-- 頁腳區域 -->
+<footer style="margin-top: 20px;">
+    <small id="send-message"></small>
+</footer>
+
+<!-- 全域浮動提示容器 -->
+<div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>

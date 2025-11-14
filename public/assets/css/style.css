@@ -1,0 +1,1919 @@
+/* ================================================================
+ * RecordRTC Example - 響應式樣式表
+ * 針對手機、平板、桌機分別設計，不共用 layout
+ * ================================================================ */
+
+/* ================================================================
+ * 基礎重置（所有裝置共用）
+ * ================================================================ */
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* 防止縮放 */
+    touch-action: manipulation;
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+/* CSS 變數：統一色彩與間距，便於 RWD 調整 */
+:root {
+    --color-bg: #ffffff;
+    --color-bg-alt: #f7fafc;
+    --color-bg-soft: #edf2f7;
+    --color-border: #e2e8f0;
+    --color-border-strong: #cbd5e0;
+    --color-text: #2d3748;
+    --color-text-muted: #718096;
+    --color-accent: #667eea;
+    --color-accent-alt: #764ba2;
+    --color-success: #4CAF50;
+    --color-danger: #f44336;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 15px;
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.06);
+    --shadow-md: 0 6px 12px rgba(0,0,0,0.10);
+    --shadow-lg: 0 12px 24px rgba(0,0,0,0.18);
+    --transition-fast: 0.15s ease;
+    --transition: 0.3s ease;
+}
+
+/* ================================================================
+ * 水平模式版面（所有裝置共用）
+ * - 僅顯示 overview 與 accumulated，並隱藏 live
+ * - 交換上下順序：累積在上、總覽在下
+ * ================================================================ */
+#waveform-wrapper.mode-horizontal {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    margin: 12px auto;
+}
+
+#waveform-wrapper.mode-horizontal .waveform-col { display: block; }
+#waveform-wrapper.mode-horizontal .accumulated-col { order: 1; }
+#waveform-wrapper.mode-horizontal #recording-duration { order: 1.5; margin: 8px auto; text-align: center; }
+#waveform-wrapper.mode-horizontal .overview-col { order: 2; }
+#waveform-wrapper.mode-horizontal .live-col { display: none; }
+/* 隱藏 Overview 時的佈局調整 */
+#waveform-wrapper.no-overview .overview-col { display:none; }
+#waveform-wrapper.no-overview.mode-vertical { grid-template-columns: 1fr; }
+
+/* 進階設定折疊面板 */
+details.advanced-panel {
+        max-width: 1400px;
+        margin: 10px auto 0;
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-md);
+        background: var(--color-bg);
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+}
+details.advanced-panel > summary {
+        padding: 10px 14px;
+        font-weight: 600;
+        cursor: pointer;
+        background: var(--color-bg-alt);
+        list-style: none;
+        user-select: none;
+}
+details.advanced-panel > summary::-webkit-details-marker { display:none; }
+details.advanced-panel[open] > summary { border-bottom: 1px solid var(--color-border); }
+details.advanced-panel .advanced-content { padding: 12px 14px 18px; display: flex; flex-direction: column; gap: 16px; }
+/* 區段式折疊 (Accordion) */
+details.adv-section { border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow: hidden; background: var(--color-bg); }
+details.adv-section + details.adv-section { margin-top: 10px; }
+details.adv-section > summary { padding: 10px 12px; font-weight:600; background: var(--color-bg-soft); cursor: pointer; list-style: none; }
+details.adv-section > summary::-webkit-details-marker { display:none; }
+details.adv-section[open] > summary { border-bottom: 1px solid var(--color-border); }
+.display-extras { display:flex; gap:16px; align-items:center; padding: 8px 4px; color: var(--color-text); flex-wrap: wrap; }
+
+/* 迷你音量條（核心區簡化版 VU） */
+.mini-level { position: relative; width: 160px; height: 10px; background: #e2e8f0; border-radius: 6px; overflow:hidden; box-shadow: inset 0 0 2px rgba(0,0,0,0.15); }
+#mini-level-bar { position:absolute; top:0; left:0; height:100%; width:0%; background: linear-gradient(90deg,#4CAF50,#f6d600,#f44336); transition: width 0.15s linear; }
+.button-container { flex-wrap: wrap; }
+.button-container .mini-level { align-self: center; margin: 4px 8px; }
+
+@media (max-width: 600px) {
+    .mini-level { width: 120px; }
+}
+
+/* 迷你音量條在波形容器中的定位與跨欄樣式 */
+#waveform-wrapper .mini-level { width: 100%; max-width: none; }
+#waveform-wrapper.mode-vertical .mini-level-row { grid-column: 1 / -1; }
+#waveform-wrapper.mode-vertical .mini-level-row .mini-level { width: 100%; }
+
+/* 深色主題（以 data-theme="dark" 切換） */
+[data-theme="dark"] {
+    --color-bg: #0f172a;
+    --color-bg-alt: #111827;
+    --color-bg-soft: #0b1220;
+    --color-border: #263042;
+    --color-border-strong: #344056;
+    --color-text: #e5e7eb;
+    --color-text-muted: #9ca3af;
+    --color-accent: #60a5fa;
+    --color-accent-alt: #34d399;
+    --color-success: #10b981;
+    --color-danger: #ef4444;
+}
+[data-theme="dark"] body::before { background: rgba(17,24,39,0.92); }
+[data-theme="dark"] .specs-panel { background:#0f172a; border-color:#263042; }
+[data-theme="dark"] .specs-panel > summary { background:#111827; border-bottom-color:#263042; color:#e5e7eb; }
+[data-theme="dark"] #vu-meter { border-color:#263042; }
+[data-theme="dark"] .waveform-toolbar { background: linear-gradient(135deg,#0f172a 0%, #111827 100%); }
+
+/* 預設視窗秒數設定區塊 */
+.default-window-container {
+    max-width: 1400px;
+    margin: 12px auto 0;
+    padding: 10px 14px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    box-shadow: var(--shadow-sm);
+    font-size: 14px;
+}
+.default-window-label { font-weight:600; color: var(--color-text); }
+#default-window-seconds {
+    width: 90px;
+    padding: 6px 8px;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-alt);
+    font-size: 14px;
+}
+#default-window-seconds:focus { outline:2px solid var(--color-accent); }
+#btn-reset-window-seconds {
+    padding: 6px 12px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(135deg,var(--color-accent) 0%, var(--color-accent-alt) 100%);
+    color:#fff;
+    font-weight:600;
+    cursor:pointer;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-fast);
+}
+#btn-reset-window-seconds:hover { filter: brightness(1.08); box-shadow: var(--shadow-md); }
+#btn-reset-window-seconds:active { filter: brightness(.92); }
+.default-window-hint { flex: 1 1 100%; font-size:12px; color: var(--color-text-muted); }
+
+/* 可視範圍秒數指示 */
+.waveform-toolbar .window-indicator { font-size:12px; color: var(--color-text); background: rgba(255,255,255,0.7); padding:4px 10px; border-radius: var(--radius-sm); box-shadow: var(--shadow-sm); }
+#visible-window-seconds { color: var(--color-accent-alt); }
+
+html {
+    /* 防止雙擊縮放 */
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ================================================================
+ * 垂直模式版面（所有裝置共用）
+ * - 三個波形區塊橫向排列：overview | accumulated | live
+ * - 每個區塊高度 80vh，canvas 填滿容器
+ * ================================================================ */
+#waveform-wrapper.mode-vertical {
+    display: grid !important; /* 強制使用 Grid 以避免其他樣式覆蓋 */
+    grid-auto-flow: dense;   /* 自動填充空格 */
+    grid-template-columns: minmax(100px, 28%) 1fr; /* overview | accumulated */
+    grid-template-rows: auto auto; /* 兩行: 第一行波形, 第二行 recording-duration */
+    align-items: stretch;
+    justify-content: stretch;
+    gap: 8px;
+    width: 100%;
+    margin: 12px auto;
+    overflow: hidden; /* 不希望水平捲動 */
+}
+
+#waveform-wrapper.mode-vertical .waveform-col {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: stretch;
+    height: 55vh; /* 調整為 55vh,確保進階設定收合後整頁可見 */
+    max-height: 500px; /* 限制最大高度避免過高 */
+    background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
+    border-radius: 12px;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.08);
+    padding: 6px;
+}
+
+/* 左→右：overview | accumulated（live 在垂直模式隱藏） */
+#waveform-wrapper.mode-vertical .overview-col { min-width: 0; grid-column: 1 / 2; grid-row: 1; }
+#waveform-wrapper.mode-vertical #recording-duration { 
+    grid-column: 1 / -1; 
+    grid-row: 2; 
+    text-align: center; 
+    margin: 8px auto;
+}
+#waveform-wrapper.mode-vertical .accumulated-col { min-width: 0; grid-column: 2 / 3; grid-row: 1; }
+#waveform-wrapper.mode-vertical .live-col { display: none; }
+
+/* 小螢幕比例微調，避免 overview 過窄或造成換行 */
+@media (max-width: 600px) {
+    #waveform-wrapper.mode-vertical { grid-template-columns: 32% 1fr; }
+}
+
+#waveform-wrapper.mode-vertical canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* 移除在手機/平板樣式對單一 canvas 設定的外邊距，讓兩欄緊貼填滿 */
+#waveform-wrapper.mode-vertical .waveform-col .wave-canvas {
+    margin: 0 !important;
+}
+
+/* 頂部 VU Meter 基礎樣式（所有裝置共用，置於所有波形上方） */
+.vu-container {
+    width: 100%;
+    max-width: 1400px;
+    margin: 12px auto 0;
+    padding: 0 12px;
+}
+#waveform-wrapper + .vu-container { margin-top: 12px; }
+
+#vu-meter {
+    display: block;
+    width: 100%;
+    height: 28px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    background: linear-gradient(90deg,#1b1f24,#2d3748);
+    box-shadow: inset 0 0 4px rgba(0,0,0,0.4);
+}
+
+/* 浮動提示 Toast */
+#toast-container {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+}
+.toast-item {
+    background: linear-gradient(135deg,#2d3748 0%,#1a202c 100%);
+    color:#fff;
+    padding: 10px 14px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    font-size:14px;
+    line-height:1.4;
+    opacity:0;
+    transform: translateY(-6px);
+    animation: toast-in 0.35s ease forwards;
+    pointer-events: auto;
+    max-width: 280px;
+    word-break: break-word;
+}
+.toast-item.out {
+    animation: toast-out 0.4s ease forwards;
+}
+@keyframes toast-in {
+    to { opacity:1; transform: translateY(0); }
+}
+@keyframes toast-out {
+    to { opacity:0; transform: translateY(-6px); }
+}
+
+/* 麥克風選擇器 */
+.mic-select-container {
+    max-width: 1400px;
+    margin: 8px auto 0;
+    padding: 8px 12px;
+    display: grid;
+    grid-template-columns: 160px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+.mic-label { color:#2d3748; font-weight:600; }
+.mic-select { width: 100%; padding: 8px 10px; border:1px solid #cbd5e0; border-radius:8px; background:#f8fafc; }
+.mic-refresh { padding: 9px 12px; border: none; border-radius: 8px; background: linear-gradient(135deg,#4facfe 0%,#00f2fe 100%); color:#fff; font-weight:600; cursor:pointer; }
+.mic-refresh:disabled { opacity:.5; cursor:not-allowed; }
+.mic-hint { grid-column: 1 / -1; color:#718096; font-size:12px; }
+
+/* 錄音規格面板 */
+.specs-panel {
+    margin: 8px 0 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    overflow: hidden;
+}
+.specs-panel > summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 10px 12px;
+    font-weight: 600;
+    color: #2d3748;
+    background: #f7fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+.specs-panel > summary::-webkit-details-marker { display: none; }
+.specs-panel[open] > summary { border-bottom: 1px solid #e2e8f0; }
+
+#audio-specs-content {
+    padding: 10px 12px 12px;
+}
+.spec-line {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 8px;
+    padding: 6px 0;
+    align-items: start;
+    border-bottom: 1px dashed #edf2f7;
+}
+.spec-line:last-child { border-bottom: none; }
+.spec-line .label {
+    color: #4a5568;
+    font-size: 13px;
+    line-height: 1.4;
+}
+.spec-line .value {
+    color: #1a202c;
+    font-size: 13px;
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+/* 垂直模式快速切換控制 */
+.orientation-quick {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    z-index: 1500;
+    display: none;
+    gap: 8px;
+}
+.orientation-quick button {
+    padding: 10px 12px;
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    font-weight: 700;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.18);
+    cursor: pointer;
+}
+#btn-back-horizontal { background: linear-gradient(135deg,#f093fb 0%,#f5576c 100%); }
+#btn-restore-auto { background: linear-gradient(135deg,#4facfe 0%,#00f2fe 100%); }
+
+/* 僅在垂直模式顯示快速切換 */
+.is-vertical #orientation-quick { display: inline-flex !important; }
+
+@media screen and (max-width: 480px) {
+    .spec-line { grid-template-columns: 1fr; }
+    .spec-line .label { font-weight: 600; margin-bottom: 2px; }
+}
+
+/* 垂直模式提升間距 */
+#waveform-wrapper.mode-vertical + .vu-container, .vu-container + #waveform-wrapper.mode-vertical { display:block; }
+
+/* 在垂直模式下，避免外層媒體查詢中的固定高度干擾（提高優先級） */
+@media screen and (max-width: 1024px) {
+    #waveform-wrapper.mode-vertical canvas {
+        height: 100% !important; /* 強制覆蓋平板/手機針對 canvas 的固定高度 */
+    }
+}
+
+@media screen and (min-width: 1025px) {
+    #waveform-wrapper.mode-vertical canvas {
+        height: 100% !important; /* 強制覆蓋桌機針對 canvas 的固定高度 */
+    }
+}
+
+/* ================================================================
+ * 手機樣式（預設，480px 以下）
+ * 專為小螢幕優化的垂直佈局
+ * ================================================================ */
+@media screen and (max-width: 480px) {
+    /* 強制禁止縮放 */
+    html {
+        width: 100%;
+        height: 100%;
+        position: fixed;
+        overflow: hidden;
+    }
+    
+    body {
+        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 8px;
+        width: 100%;
+        height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        position: relative;
+        /* 防止手勢縮放 */
+        touch-action: pan-y;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+    }
+    
+    /* 主容器 */
+    body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.97);
+        z-index: -1;
+        margin: 5px;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* 標題區域 */
+    h1 {
+        color: #2d3748;
+        text-align: center;
+        margin: 8px 0 15px;
+        font-size: 1.3rem;
+        font-weight: 700;
+        padding: 0 8px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        line-height: 1.3;
+        cursor: text;
+        outline: none;
+        transition: all 0.2s ease;
+    }
+    
+    h1:hover {
+        opacity: 0.8;
+    }
+    
+    h1:focus {
+        opacity: 1;
+        padding: 4px 8px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        border-radius: 4px;
+    }
+    
+    h2 {
+        color: #4a5568;
+        text-align: center;
+        margin: 10px 8px 18px;
+        font-size: 0.95rem;
+        padding: 12px 15px;
+        line-height: 1.5;
+        background: #f7fafc;
+        border-left: 3px solid #667eea;
+        border-radius: 6px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        cursor: text;
+        outline: none;
+        transition: all 0.2s ease;
+    }
+    
+    h2:hover {
+        background: #edf2f7;
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+    }
+    
+    h2:focus {
+        background: #e6f2ff;
+        border-left-color: #5a67d8;
+        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.15), 0 3px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    h3, h4 {
+        color: #718096;
+        text-align: center;
+        margin: 10px 0;
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 0 8px;
+    }
+    
+    /* 按鈕容器 - 手機專用垂直堆疊 */
+    .button-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        margin: 20px 8px;
+        padding: 0;
+    }
+    
+    br {
+        display: none;
+    }
+    
+    .button-container button,
+    button {
+        display: block;
+        width: calc(100% - 16px);
+        max-width: 100%;
+        margin: 0;
+        padding: 10px 12px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        min-height: 38px;
+        touch-action: manipulation;
+        transition: all 0.3s ease;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+        /* 允許按鈕文字選取但防止縮放 */
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+        user-select: text;
+    }
+    
+    button:active {
+        transform: scale(0.98);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* 錄音切換按鈕 - 手機樣式 */
+    #btn-toggle-recording {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        order: 1;
+        position: relative;
+        transition: all 0.3s ease;
+    }
+    
+    
+    /* 顯示模式切換 */
+    .display-mode-toggle {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        padding: 6px 8px;
+        background: #f7fafc;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        margin-top: 4px;
+    }
+    .display-mode-toggle label { font-size: 14px; color: #4a5568; }
+    .display-mode-toggle input { accent-color: #667eea; }
+    #btn-toggle-recording.recording {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+        }
+        50% {
+            box-shadow: 0 4px 20px rgba(245, 87, 108, 0.5);
+        }
+    }
+    
+    /* 播放按鈕 - 手機樣式 */
+    .play-button {
+        background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        color: white;
+        order: 2;
+    }
+    
+    #btn-download-recording {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+        order: 3;
+    }
+    
+    #btn-download-recording:disabled {
+        background: linear-gradient(135deg, #cbd5e0 0%, #a0aec0 100%);
+        opacity: 0.5;
+    }
+    
+    /* AGC 控制區 - 手機樣式 */
+    .agc-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 15px 8px 20px;
+        padding: 12px;
+        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+    
+    .agc-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: 600;
+        color: #2d3748;
+        margin: 0;
+        padding: 4px;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    .agc-label input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+        margin: 0;
+        accent-color: #667eea;
+    }
+    
+    .agc-label span {
+        line-height: 1.4;
+    }
+    
+    .agc-hint {
+        display: block;
+        color: #718096;
+        font-size: 12px;
+        text-align: center;
+        margin-top: 8px;
+        line-height: 1.5;
+        padding: 0 8px;
+    }
+    
+    /* Canvas 波形 - 手機專用尺寸 */
+    #waveform {
+        display: block;
+        width: calc(100% - 16px) !important;
+        height: 100px !important;
+        margin: 15px auto 20px !important;
+        border: none;
+        border-radius: 10px;
+        box-shadow: 0 6px 12px rgba(102, 126, 234, 0.15);
+        background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    
+    #overview-waveform {
+        display: block;
+        width: calc(100% - 16px) !important;
+        height: 50px !important;
+        margin: 10px auto 15px !important;
+        border: 2px solid #667eea;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+        cursor: pointer;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    
+    #accumulated-waveform {
+        display: block;
+        width: calc(100% - 16px) !important;
+        height: 90px !important;
+        margin: 15px auto 20px !important;
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+        background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
+        cursor: grab;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: none;
+    }
+    
+    #accumulated-waveform:active {
+        cursor: grabbing;
+    }
+    /* 手機 VU Meter 調整高度以利觀察 */
+    #vu-meter { height: 34px; margin: 4px auto 6px; }
+    .mic-select-container { grid-template-columns: 1fr; padding: 8px; margin: 6px auto 0; }
+    .mic-label { margin-bottom: 4px; }
+    .specs-panel { margin: 6px 0 0; }
+    
+    /* 全局波形標籤容器 */
+    div[style*="text-align: center"] {
+        margin: 15px 8px;
+    }
+    
+    div[style*="text-align: center"] label {
+        font-weight: 600;
+        color: #4a5568;
+        font-size: 0.85rem;
+        margin-bottom: 6px;
+    }
+    
+    /* 工具列 - 手機專用緊湊佈局 */
+    .waveform-toolbar {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin: 15px 8px 20px;
+        padding: 12px;
+        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+        border-radius: 12px;
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+    }
+    
+    .waveform-toolbar > div:first-child {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    
+    .waveform-toolbar button {
+        width: 100%;
+        margin: 0;
+        padding: 12px 10px;
+        font-size: 13px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        color: #4a5568;
+        min-height: 48px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .waveform-toolbar button:active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-color: #667eea;
+    }
+    
+    #accum-zoom-reset {
+        grid-column: 1 / -1;
+    }
+    
+    /* 主播放控制按鈕樣式 */
+    #btn-play {
+        background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        color: #fff;
+        font-weight: 700;
+    }
+    #btn-play:hover:not(:disabled) {
+        background: linear-gradient(135deg, #45a049 0%, #388e3c 100%);
+        transform: translateY(-1px);
+    }
+    #btn-play:active:not(:disabled) {
+        background: linear-gradient(135deg, #388e3c 0%, #2e7d32 100%);
+    }
+    #btn-play:disabled {
+        opacity: .5;
+        cursor: not-allowed;
+    }
+
+    /* 暫停按鈕樣式 */
+    #btn-pause {
+        background: linear-gradient(135deg, #ffb347 0%, #ff9800 100%);
+        color: #fff;
+        font-weight: 700;
+    }
+    #btn-pause:hover:not(:disabled) {
+        background: linear-gradient(135deg, #ff9800 0%, #fb8c00 100%);
+        transform: translateY(-1px);
+    }
+    #btn-pause:active:not(:disabled) {
+        background: linear-gradient(135deg, #fb8c00 0%, #ef6c00 100%);
+    }
+    #btn-pause:disabled {
+        opacity: .45;
+        cursor: not-allowed;
+    }
+
+    /* 停止播放按鈕樣式 */
+    #btn-stop-playback {
+        background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+        color: #fff;
+        font-weight: 700;
+    }
+    #btn-stop-playback:hover:not(:disabled) {
+        background: linear-gradient(135deg, #e53935 0%, #c62828 100%);
+        transform: translateY(-1px);
+    }
+    #btn-stop-playback:active:not(:disabled) {
+        background: linear-gradient(135deg, #c62828 0%, #b71c1c 100%);
+    }
+    #btn-stop-playback:disabled {
+        opacity: .45;
+        cursor: not-allowed;
+    }
+
+    /* 取消選取區間按鈕樣式 */
+    #btn-clear-selection {
+        background: linear-gradient(135deg, #9e9e9e 0%, #757575 100%);
+        color: #fff;
+        font-weight: 700;
+    }
+    #btn-clear-selection:hover:not(:disabled) {
+        background: linear-gradient(135deg, #b0b0b0 0%, #616161 100%);
+        transform: translateY(-1px);
+    }
+    #btn-clear-selection:active:not(:disabled) {
+        background: linear-gradient(135deg, #616161 0%, #424242 100%);
+    }
+    #btn-clear-selection:disabled {
+        opacity: .35;
+        cursor: not-allowed;
+    }
+    
+    /* waveform-action-bar 內的按鈕進一步優化（手機端） */
+    .waveform-action-bar button {
+        flex: 1 1 calc(50% - 4px);
+        max-width: calc(50% - 4px);
+        min-width: 120px;
+        padding: 8px 10px;
+        font-size: 12px;
+        min-height: 36px;
+    }
+    
+    .waveform-action-bar #btn-download-recording {
+        flex: 1 1 100%;
+        max-width: 100%;
+    }
+    
+    .waveform-toolbar .hint {
+        font-size: 10px;
+        color: #718096;
+        text-align: center;
+        line-height: 1.4;
+        padding: 8px;
+        background: rgba(255, 255, 255, 0.6);
+        border-radius: 6px;
+        margin: 0;
+    }
+    
+    /* Audio 播放器 */
+    audio {
+        display: block;
+        width: calc(100% - 16px);
+        margin: 15px auto;
+        border-radius: 30px;
+        box-shadow: 0 3px 8px rgba(102, 126, 234, 0.2);
+    }
+    
+    /* 已棄用選取播放控制容器（保留樣式若殘留 DOM 也不影響） */
+    #selection-playback-controls {
+        margin: 12px 8px;
+        text-align: center;
+    }
+    
+    #selection-playback-controls button {
+        width: auto;
+        display: inline-block;
+        font-size: 12px;
+        padding: 10px 16px;
+        margin: 4px;
+        min-height: 44px;
+    }
+    
+    /* 移除：錄音片段容器（已不使用） */
+    
+    /* 分隔線 */
+    hr {
+        margin: 25px auto;
+        border: none;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+        max-width: 90%;
+    }
+    
+    /* Footer */
+    footer {
+        text-align: center;
+        padding: 15px 8px;
+        margin-top: 20px;
+        color: #718096;
+        font-size: 11px;
+    }
+}
+
+/* ================================================================
+ * 平板樣式（481px - 1024px）
+ * 中等螢幕的混合佈局
+ * ================================================================ */
+@media screen and (min-width: 481px) and (max-width: 1024px) {
+    /* 強制禁止縮放 */
+    html {
+        width: 100%;
+        height: 100%;
+        position: fixed;
+        overflow: hidden;
+    }
+    
+    body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 15px 20px;
+        width: 100%;
+        height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+        position: relative;
+        /* 防止手勢縮放 */
+        touch-action: pan-y;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+    }
+    
+    /* 主容器 */
+    body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.96);
+        z-index: -1;
+        margin: 10px;
+        border-radius: 18px;
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
+    }
+    
+    /* 標題區域 */
+    h1 {
+        color: #2d3748;
+        text-align: center;
+        margin: 15px 0 25px;
+        font-size: 1.8rem;
+        font-weight: 700;
+        padding: 0 15px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: -0.3px;
+        cursor: text;
+        outline: none;
+        transition: all 0.2s ease;
+    }
+    
+    h1:hover {
+        opacity: 0.8;
+    }
+    
+    h1:focus {
+        opacity: 1;
+        padding: 6px 15px;
+        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        border-radius: 6px;
+    }
+    
+    h2 {
+        color: #4a5568;
+        text-align: center;
+        margin: 15px auto 30px;
+        font-size: 1.15rem;
+        padding: 16px 25px;
+        line-height: 1.6;
+        background: #f7fafc;
+        border-left: 4px solid #667eea;
+        border-radius: 10px;
+        max-width: 700px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+        cursor: text;
+        outline: none;
+        transition: all 0.2s ease;
+    }
+    
+    h2:hover {
+        background: #edf2f7;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+    
+    h2:focus {
+        background: #e6f2ff;
+        border-left-color: #5a67d8;
+        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.15), 0 4px 14px rgba(0, 0, 0, 0.1);
+    }
+    
+    h3, h4 {
+        color: #718096;
+        text-align: center;
+        margin: 12px 0;
+        font-size: 1rem;
+        font-weight: 600;
+    }
+    
+    /* 按鈕容器 - 平板使用水平居中排列 */
+    .button-container {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        margin: 25px auto;
+        padding: 0;
+        max-width: 700px;
+    }
+    
+    br {
+        display: none;
+    }
+    
+    /* 按鈕樣式 */
+    .button-container button,
+    body > button {
+        display: inline-block;
+        width: auto;
+        min-width: 160px;
+        margin: 0;
+        padding: 14px 28px;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: 600;
+        min-height: 50px;
+        touch-action: manipulation;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+        vertical-align: middle;
+    }
+    
+    .button-container button:hover,
+    body > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.18);
+    }
+    
+    .button-container button:active,
+    body > button:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* 錄音切換按鈕 - 平板樣式 */
+    #btn-toggle-recording {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        transition: all 0.3s ease;
+    }
+    
+    #btn-toggle-recording:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    }
+    
+    #btn-toggle-recording.recording {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+    
+    #btn-toggle-recording.recording:hover {
+        background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+        }
+        50% {
+            box-shadow: 0 6px 20px rgba(245, 87, 108, 0.5);
+        }
+    }
+    
+    /* 播放按鈕 - 平板樣式 */
+    .play-button {
+        background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        color: white;
+    }
+    
+    .play-button:hover {
+        background: linear-gradient(135deg, #45a049 0%, #4CAF50 100%);
+    }
+    
+    #btn-download-recording {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+    
+    #btn-download-recording:hover:not(:disabled) {
+        background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+    }
+    
+    #btn-download-recording:disabled {
+        background: linear-gradient(135deg, #cbd5e0 0%, #a0aec0 100%);
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    /* AGC 控制區 - 平板樣式 */
+    .agc-container {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        margin: 20px auto;
+        padding: 14px 20px;
+        max-width: 700px;
+        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    }
+    
+    .agc-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: 600;
+        color: #2d3748;
+        margin: 0;
+        padding: 4px;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    .agc-label input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+        margin: 0;
+        accent-color: #667eea;
+    }
+    
+    .agc-label span {
+        line-height: 1.4;
+    }
+    
+    .agc-hint {
+        display: block;
+        color: #718096;
+        font-size: 13px;
+        text-align: center;
+        margin: 0;
+        line-height: 1.5;
+        width: 100%;
+    }
+    
+    /* Canvas 波形 - 平板專用尺寸 */
+    #waveform {
+        display: block;
+        width: 90% !important;
+        max-width: 700px !important;
+        height: 140px !important;
+        margin: 25px auto 30px !important;
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 8px 16px rgba(102, 126, 234, 0.15);
+        background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    
+    #overview-waveform {
+        display: block;
+        width: 90% !important;
+        max-width: 700px !important;
+        height: 70px !important;
+        margin: 15px auto 20px !important;
+        border: 3px solid #667eea;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    
+    #overview-waveform:hover {
+        border-color: #764ba2;
+        box-shadow: 0 8px 16px rgba(118, 75, 162, 0.2);
+        transform: translateY(-2px);
+    }
+    
+    #accumulated-waveform {
+        display: block;
+        width: 90% !important;
+        max-width: 700px !important;
+        height: 120px !important;
+        margin: 20px auto 25px !important;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
+        cursor: grab;
+        user-select: none;
+        -webkit-user-select: none;
+        transition: box-shadow 0.3s ease;
+    }
+    
+    #accumulated-waveform:hover {
+        box-shadow: 0 10px 20px rgba(102, 126, 234, 0.2);
+    }
+    
+    #accumulated-waveform:active {
+        cursor: grabbing;
+    }
+    /* 平板 VU Meter 尺寸 */
+    #vu-meter { height: 30px; margin-bottom: 4px; }
+    .mic-select-container { max-width: 700px; }
+    .specs-panel { max-width: 700px; margin: 6px auto 0; }
+    
+    /* 全局波形標籤容器 */
+    div[style*="text-align: center"] {
+        margin: 20px auto;
+        max-width: 700px;
+    }
+    
+    div[style*="text-align: center"] label {
+        font-weight: 600;
+        color: #4a5568;
+        font-size: 0.95rem;
+        margin-bottom: 8px;
+    }
+    
+    /* 工具列 - 平板使用水平佈局 */
+    .waveform-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        margin: 20px auto 30px;
+        padding: 16px 20px;
+        max-width: 700px;
+        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+        border-radius: 15px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+    
+    .waveform-toolbar button {
+        flex: 0 1 auto;
+        padding: 12px 20px;
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
+        border: 2px solid #e2e8f0;
+        border-radius: 10px;
+        color: #4a5568;
+        min-height: 48px;
+        min-width: 100px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    }
+    
+    .waveform-toolbar button:hover:not(:disabled) {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-color: #667eea;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
+    }
+    
+    .waveform-toolbar button:active:not(:disabled) {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+    }
+    
+    .waveform-toolbar button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+    
+    /* 播放按鈕特殊樣式 - 平板 */
+    #accum-play-selection {
+        background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        color: white;
+        font-weight: bold;
+        border-color: #4CAF50;
+    }
+    
+    #accum-play-selection:hover:not(:disabled) {
+        background: linear-gradient(135deg, #45a049 0%, #388e3c 100%);
+        border-color: #45a049;
+        box-shadow: 0 4px 10px rgba(76, 175, 80, 0.4);
+    }
+    
+    #accum-play-selection:active:not(:disabled) {
+        background: linear-gradient(135deg, #388e3c 0%, #2e7d32 100%);
+    }
+    
+    .waveform-toolbar .hint {
+        flex: 1 1 100%;
+        font-size: 12px;
+        color: #718096;
+        text-align: center;
+        line-height: 1.5;
+        padding: 10px 15px;
+        background: rgba(255, 255, 255, 0.6);
+        border-radius: 8px;
+        margin-top: 5px;
+    }
+    
+    /* Audio 播放器 */
+    audio {
+        display: block;
+        width: 85%;
+        max-width: 600px;
+        margin: 25px auto;
+        border-radius: 40px;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    }
+    
+    /* 選取播放控制 */
+    #selection-playback-controls {
+        margin: 15px auto;
+        text-align: center;
+        max-width: 700px;
+    }
+    
+    #selection-playback-controls button {
+        font-size: 13px;
+        padding: 10px 20px;
+        margin: 6px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        min-height: 44px;
+        box-shadow: 0 3px 8px rgba(102, 126, 234, 0.3);
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    #selection-playback-controls button:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        transform: translateY(-2px);
+    }
+    
+    /* 移除：錄音片段容器（已不使用） */
+    
+    /* 分隔線 */
+    hr {
+        margin: 35px auto;
+        border: none;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+        max-width: 85%;
+    }
+    
+    /* Footer */
+    footer {
+        text-align: center;
+        padding: 20px;
+        margin-top: 30px;
+        color: #718096;
+        font-size: 12px;
+    }
+}
+
+/* ================================================================
+ * 桌機樣式（1025px 以上）
+ * 大螢幕的寬敞佈局
+ * ================================================================ */
+@media screen and (min-width: 1025px) {
+    body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 25px 40px;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    /* 主容器 */
+    body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(100% - 80px);
+        max-width: 1400px;
+        height: calc(100% - 40px);
+        background: rgba(255, 255, 255, 0.95);
+        z-index: -1;
+        margin: 20px 0;
+        border-radius: 25px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+    
+    /* 標題區域 */
+    h1 {
+        color: #2d3748;
+        text-align: center;
+        margin: 20px 0 40px;
+        font-size: 2.5rem;
+        font-weight: 700;
+        padding: 0 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: -0.5px;
+        cursor: text;
+        outline: none;
+        transition: all 0.2s ease;
+    }
+    
+    h1:hover {
+        opacity: 0.8;
+    }
+    
+    h1:focus {
+        opacity: 1;
+        padding: 8px 20px;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        border-radius: 8px;
+    }
+    
+    h2 {
+        color: #4a5568;
+        text-align: center;
+        margin: 20px auto 40px;
+        font-size: 1.3rem;
+        padding: 20px 35px;
+        line-height: 1.7;
+        background: #f7fafc;
+        border-left: 5px solid #667eea;
+        border-radius: 12px;
+        max-width: 900px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        cursor: text;
+        outline: none;
+        transition: all 0.2s ease;
+    }
+    
+    h2:hover {
+        background: #edf2f7;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    }
+    
+    h2:focus {
+        background: #e6f2ff;
+        border-left-color: #5a67d8;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15), 0 5px 18px rgba(0, 0, 0, 0.1);
+    }
+    
+    h3, h4 {
+        color: #718096;
+        text-align: center;
+        margin: 15px 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+    
+    /* 按鈕容器 - 桌機使用水平居中排列 */
+    .button-container {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+        margin: 30px auto;
+        padding: 0;
+        max-width: 950px;
+    }
+    
+    br + button:first-of-type,
+    h4 + br + button {
+        display: inline-block;
+    }
+    
+    .button-container button,
+    body > button {
+        display: inline-block;
+        width: auto;
+        min-width: 180px;
+        margin: 0;
+        padding: 16px 32px;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 600;
+        min-height: 54px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
+        vertical-align: middle;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .button-container button::before,
+    body > button::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.3);
+        transform: translate(-50%, -50%);
+        transition: width 0.6s, height 0.6s;
+    }
+    
+    .button-container button:active::before,
+    body > button:active::before {
+        width: 300px;
+        height: 300px;
+    }
+    
+    .button-container button:hover,
+    body > button:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+    }
+    
+    .button-container button:active,
+    body > button:active {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+    }
+    
+    /* 錄音切換按鈕 - 桌機樣式 */
+    #btn-toggle-recording {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    #btn-toggle-recording:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+    
+    #btn-toggle-recording.recording {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+    
+    #btn-toggle-recording.recording:hover {
+        background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+        box-shadow: 0 8px 20px rgba(245, 87, 108, 0.4);
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
+        }
+        50% {
+            box-shadow: 0 8px 24px rgba(245, 87, 108, 0.5);
+        }
+    }
+    
+    /* 播放按鈕 - 桌機樣式 */
+    .play-button {
+        background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        color: white;
+        font-weight: 700;
+    }
+    
+    .play-button:hover {
+        background: linear-gradient(135deg, #45a049 0%, #4CAF50 100%);
+        box-shadow: 0 8px 20px rgba(76, 175, 80, 0.4);
+    }
+    
+    #btn-download-recording {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+    }
+    
+    #btn-download-recording:hover:not(:disabled) {
+        background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+        box-shadow: 0 8px 20px rgba(79, 172, 254, 0.4);
+    }
+    
+    #btn-download-recording:disabled {
+        background: linear-gradient(135deg, #cbd5e0 0%, #a0aec0 100%);
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    /* AGC 控制區 - 桌機樣式 */
+    
+    /* AGC 控制區 - 桌機樣式 */
+    .agc-container {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 15px;
+        margin: 25px auto;
+        padding: 16px 24px;
+        max-width: 950px;
+        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+        border-radius: 15px;
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s ease;
+    }
+    
+    .agc-container:hover {
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+    }
+    
+    .agc-label {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 600;
+        color: #2d3748;
+        margin: 0;
+        padding: 6px;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        transition: color 0.3s ease;
+    }
+    
+    .agc-label:hover {
+        color: #667eea;
+    }
+    
+    .agc-label input[type="checkbox"] {
+        width: 22px;
+        height: 22px;
+        cursor: pointer;
+        margin: 0;
+        accent-color: #667eea;
+        transition: transform 0.2s ease;
+    }
+    
+    .agc-label input[type="checkbox"]:hover {
+        transform: scale(1.1);
+    }
+    
+    .agc-label span {
+        line-height: 1.4;
+    }
+    
+    .agc-hint {
+        display: block;
+        color: #718096;
+        font-size: 14px;
+        text-align: center;
+        margin: 0;
+        line-height: 1.5;
+        width: 100%;
+    }
+    
+    /* Canvas 波形 - 桌機專用尺寸 */
+    #waveform {
+        display: block;
+        width: 85% !important;
+        max-width: 950px !important;
+        height: 180px !important;
+        margin: 35px auto 40px !important;
+        border: none;
+        border-radius: 15px;
+        box-shadow: 0 10px 20px rgba(102, 126, 234, 0.15);
+        background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    
+    #overview-waveform {
+        display: block;
+        width: 85% !important;
+        max-width: 950px !important;
+        height: 90px !important;
+        margin: 20px auto 25px !important;
+        border: 3px solid #667eea;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    
+    #overview-waveform:hover {
+        border-color: #764ba2;
+        box-shadow: 0 12px 24px rgba(118, 75, 162, 0.2);
+        transform: translateY(-3px);
+    }
+    
+    #accumulated-waveform {
+        display: block;
+        width: 85% !important;
+        max-width: 950px !important;
+        height: 150px !important;
+        margin: 25px auto 30px !important;
+        border: 2px solid #e2e8f0;
+        border-radius: 15px;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
+        cursor: grab;
+        user-select: none;
+        -webkit-user-select: none;
+        transition: box-shadow 0.3s ease;
+    }
+    
+    #accumulated-waveform:hover {
+        box-shadow: 0 12px 24px rgba(102, 126, 234, 0.2);
+    }
+    
+    #accumulated-waveform:active {
+        cursor: grabbing;
+    }
+    /* 桌機 VU Meter 尺寸 */
+    #vu-meter { height: 32px; margin: 6px auto 8px; }
+    .mic-select-container { max-width: 950px; }
+    .specs-panel { max-width: 950px; margin: 8px auto 0; }
+    
+    /* 全局波形標籤容器 */
+    div[style*="text-align: center"] {
+        margin: 25px auto;
+        max-width: 950px;
+    }
+    
+    div[style*="text-align: center"] label {
+        font-weight: 700;
+        color: #4a5568;
+        font-size: 1.05rem;
+        margin-bottom: 10px;
+    }
+    
+    /* 工具列 - 桌機使用寬敞的水平佈局 */
+    .waveform-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+        margin: 25px auto 35px;
+        padding: 20px 30px;
+        max-width: 950px;
+        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+        border-radius: 18px;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+    }
+    
+    .waveform-toolbar button {
+        flex: 0 1 auto;
+        padding: 14px 24px;
+        margin: 0;
+        font-size: 15px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        color: #4a5568;
+        min-height: 52px;
+        min-width: 120px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.05);
+    }
+    
+    .waveform-toolbar button:hover:not(:disabled) {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-color: #667eea;
+        transform: translateY(-3px);
+        box-shadow: 0 6px 12px rgba(102, 126, 234, 0.3);
+    }
+    
+    .waveform-toolbar button:active:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 6px rgba(102, 126, 234, 0.2);
+    }
+    
+    .waveform-toolbar button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+    
+    /* 取消舊的 #accum-play-selection 桌機樣式（已改為主控制區播放鍵） */
+    
+    .waveform-toolbar .hint {
+        flex: 1 1 100%;
+        font-size: 13px;
+        color: #718096;
+        text-align: center;
+        line-height: 1.6;
+        padding: 12px 20px;
+        background: rgba(255, 255, 255, 0.6);
+        border-radius: 10px;
+        margin-top: 8px;
+    }
+    
+    /* Audio 播放器 */
+    audio {
+        display: block;
+        width: 75%;
+        max-width: 700px;
+        margin: 30px auto;
+        border-radius: 50px;
+        box-shadow: 0 6px 16px rgba(102, 126, 234, 0.2);
+    }
+    
+    /* 選取播放控制 */
+    #selection-playback-controls {
+        margin: 20px auto;
+        text-align: center;
+        max-width: 950px;
+    }
+    
+    #selection-playback-controls button {
+        font-size: 14px;
+        padding: 12px 24px;
+        margin: 8px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        min-height: 48px;
+        box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    #selection-playback-controls button:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+        box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+        transform: translateY(-2px);
+    }
+    
+    #selection-playback-controls button:active {
+        transform: translateY(0);
+        box-shadow: 0 3px 8px rgba(102, 126, 234, 0.3);
+    }
+    
+    /* 移除：錄音片段容器（已不使用） */
+    
+    /* 分隔線 */
+    hr {
+        margin: 45px auto;
+        border: none;
+        height: 3px;
+        background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+        max-width: 80%;
+    }
+    
+    /* Footer */
+    footer {
+        text-align: center;
+        padding: 25px;
+        margin-top: 40px;
+        color: #718096;
+        font-size: 13px;
+    }
+    
+    /* View1 (如果存在) */
+    #view1 {
+        display: block;
+        margin: 25px auto;
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+    }
+}

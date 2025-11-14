@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoiceBank Recorder - Simple Example</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        #app {
+            width: 100%;
+            max-width: 1200px;
+        }
+        
+        footer {
+            margin-top: 30px;
+            text-align: center;
+            color: white;
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+        
+        footer a {
+            color: white;
+            text-decoration: underline;
+        }
+        
+        .loading {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #f44336;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .error h3 {
+            margin-bottom: 10px;
+        }
+        
+        .error pre {
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🎙️ VoiceBank Recorder</h1>
+        <p>跨平台音訊錄音庫 - 簡單範例</p>
+    </header>
+    
+    <div id="app">
+        <div class="loading">
+            <button id="init-button" style="
+                font-size: 18px;
+                padding: 15px 40px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border: none;
+                border-radius: 10px;
+                cursor: pointer;
+                font-weight: 600;
+                box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+                transition: all 0.3s ease;
+            " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.6)'" 
+               onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)'">
+                🎤 啟動錄音器
+            </button>
+            <p style="margin-top: 15px; color: #666; font-size: 14px;">
+                點擊按鈕後將請求麥克風權限
+            </p>
+        </div>
+    </div>
+    
+    <footer>
+        <p>
+            VoiceBank Recorder v1.0.0 | 
+            <a href="https://github.com/yourusername/voicebank-recorder" target="_blank">GitHub</a> | 
+            <a href="../../README.md">文檔</a>
+        </p>
+    </footer>
+    
+    <!-- 載入 RecordRTC 依賴 -->
+    <script src="../../dist/vendor/RecordRTC.js"></script>
+    
+    <script type="module">
+        // 匯入 VoiceBankRecorderUI
+        import { VoiceBankRecorderUI } from '../../dist/voicebank-recorder.esm.js';
+        
+        /**
+         * 主要初始化函數
+         */
+        async function initRecorder() {
+            try {
+                console.log('=== VoiceBank Recorder Simple Example ===');
+                console.log('開始初始化...');
+                
+                // 顯示載入中
+                const appContainer = document.getElementById('app');
+                appContainer.innerHTML = `
+                    <div class="loading">
+                        <div class="loading-spinner"></div>
+                        <p>正在初始化錄音器...</p>
+                    </div>
+                `;
+                
+                // 創建錄音器實例
+                // 只需要一行代碼！所有 UI 和功能都自動設置
+                const recorder = new VoiceBankRecorderUI({
+                    container: '#app',
+                    
+                    // 主題配置（可選）
+                    theme: {
+                        primaryColor: '#667eea',
+                        secondaryColor: '#764ba2',
+                        accentColor: '#48bb78',
+                        dangerColor: '#f56565',
+                        backgroundColor: '#ffffff',
+                        textColor: '#2d3748',
+                        borderColor: '#e2e8f0'
+                    },
+                    
+                    // UI 選項（可選）
+                    showAdvancedOptions: true,  // 顯示進階選項（增益、AGC 等）
+                    showStatusLog: true,        // 顯示狀態日誌
+                    
+                    // 音訊配置（可選）
+                    audioConfig: {
+                        sampleRate: 48000,
+                        channels: 1,
+                        gain: 1.0,
+                        agc: false,
+                        echoCancellation: false,
+                        noiseSuppression: false
+                    }
+                });
+                
+                // 初始化（自動生成 UI、設置事件、初始化音訊引擎等）
+                await recorder.initialize();
+                
+                console.log('✅ 錄音器初始化完成！');
+                console.log('📝 所有功能已就緒：');
+                console.log('   - 錄音控制（開始/停止）');
+                console.log('   - 四種波形顯示（即時、VU Meter、累積、概覽）');
+                console.log('   - 波形工具（縮放、平移、重置）');
+                console.log('   - 裝置管理（麥克風、輸出裝置）');
+                console.log('   - 進階選項（增益、AGC、回音消除、降噪）');
+                console.log('   - 播放控制（播放、暫停、下載）');
+                console.log('   - 錄音資訊顯示');
+                console.log('   - 狀態日誌');
+                
+                // 將 recorder 實例暴露到全域，方便除錯
+                window.voiceBankRecorder = recorder;
+                console.log('💡 提示: 可以在 Console 中使用 window.voiceBankRecorder 存取錄音器實例');
+                
+                // 監聽清理事件（當頁面卸載時）
+                window.addEventListener('beforeunload', () => {
+                    console.log('清理資源...');
+                    recorder.destroy();
+                });
+                
+            } catch (error) {
+                console.error('初始化失敗:', error);
+                
+                // 顯示錯誤訊息
+                const appContainer = document.getElementById('app');
+                appContainer.innerHTML = `
+                    <div class="error">
+                        <h3>❌ 初始化失敗</h3>
+                        <p>${error.message}</p>
+                        <pre>${error.stack}</pre>
+                        <p style="margin-top: 15px;">
+                            <strong>可能的原因：</strong><br>
+                            • 瀏覽器不支援 Web Audio API<br>
+                            • 麥克風權限被拒絕<br>
+                            • 檔案路徑錯誤<br>
+                        </p>
+                        <button onclick="location.reload()" style="
+                            margin-top: 15px;
+                            padding: 10px 20px;
+                            background: white;
+                            color: #f44336;
+                            border: none;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 1rem;
+                            font-weight: 600;
+                        ">重新載入</button>
+                    </div>
+                `;
+            }
+        }
+        
+        // 當 DOM 準備好後，設置啟動按鈕事件
+        document.addEventListener('DOMContentLoaded', () => {
+            const initButton = document.getElementById('init-button');
+            if (initButton) {
+                initButton.addEventListener('click', async () => {
+                    initButton.disabled = true;
+                    initButton.textContent = '⏳ 初始化中...';
+                    await initRecorder();
+                });
+            }
+        });
+    </script>
+</body>
+</html>
